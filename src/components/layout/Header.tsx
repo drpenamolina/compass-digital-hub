@@ -16,7 +16,8 @@ const primaryNav = [
 ];
 
 export function Header() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+  const canAdmin = profile?.role === "reviewer" || profile?.role === "admin";
 
   return (
     <header className="border-b border-border bg-surface">
@@ -34,6 +35,11 @@ export function Header() {
               {item.label}
             </Link>
           ))}
+          {canAdmin && (
+            <Link href="/admin" className="text-sm text-muted transition-colors hover:text-accent">
+              Admin
+            </Link>
+          )}
           {user ? (
             <button onClick={() => signOut(auth)} className="text-sm text-muted hover:text-accent">
               Sign out
