@@ -60,3 +60,36 @@ export interface ResourceEntry {
   reviewerName: string;
   status: ContentStatus;
 }
+
+export type NavigateCategory = "Monthly resource" | "Session material" | "Bridge to Intake";
+
+export interface NavigateItem {
+  id: string;
+  category: NavigateCategory;
+  title: string;
+  description: string;
+  linkUrl: string;
+  lastReviewedDate: string;
+  nextReviewDue: string;
+  reviewerName: string;
+  status: ContentStatus;
+}
+
+export interface CopeSession {
+  id: string;
+  sessionNumber: number;
+  sessionDate: string;
+  title: string;
+  description: string;
+  status: "draft" | "published";
+}
+
+export interface BelongEvent {
+  id: string;
+  title: string;
+  country: string;
+  eventDate: string;
+  description: string;
+  photoUrl: string;
+  status: "draft" | "published";
+}

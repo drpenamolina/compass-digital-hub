@@ -8,7 +8,8 @@ import { EyebrowLabel } from "@/components/ui/EyebrowLabel";
 import { useAuth } from "@/lib/auth-context";
 import { subscribeToAllMatrixItems } from "@/lib/firestore/matrix";
 import { subscribeToAllResources } from "@/lib/firestore/resources";
-import type { MatrixItem, ResourceEntry } from "@/types";
+import { subscribeToAllNavigateItems } from "@/lib/firestore/navigate";
+import type { MatrixItem, NavigateItem, ResourceEntry } from "@/types";
 
 function reviewCounts(dueDates: string[]) {
   const now = new Date();
@@ -28,9 +29,11 @@ export default function AdminPage() {
   const { profile } = useAuth();
   const [matrixItems, setMatrixItems] = useState<MatrixItem[]>([]);
   const [resources, setResources] = useState<ResourceEntry[]>([]);
+  const [navigateItems, setNavigateItems] = useState<NavigateItem[]>([]);
 
   useEffect(() => subscribeToAllMatrixItems(setMatrixItems), []);
   useEffect(() => subscribeToAllResources(setResources), []);
+  useEffect(() => subscribeToAllNavigateItems(setNavigateItems), []);
 
   const canEdit = profile?.role === "reviewer" || profile?.role === "admin";
 
@@ -38,9 +41,10 @@ export default function AdminPage() {
     const dueDates = [
       ...matrixItems.map((i) => i.nextReviewDue),
       ...resources.map((r) => r.nextReviewDue),
+      ...navigateItems.map((n) => n.nextReviewDue),
     ];
     return reviewCounts(dueDates);
-  }, [matrixItems, resources]);
+  }, [matrixItems, resources, navigateItems]);
 
   if (!canEdit) {
     return (
@@ -80,6 +84,24 @@ export default function AdminPage() {
           <Card className="p-4 transition-colors hover:border-accent/40">
             <span className="text-sm font-medium text-foreground">Resource directory content</span>
             <p className="text-xs text-muted">Add, edit, and publish directory entries</p>
+          </Card>
+        </Link>
+        <Link href="/admin/navigate">
+          <Card className="p-4 transition-colors hover:border-accent/40">
+            <span className="text-sm font-medium text-foreground">Navigate content</span>
+            <p className="text-xs text-muted">Monthly resources, session materials, Bridge to Intake</p>
+          </Card>
+        </Link>
+        <Link href="/admin/cope">
+          <Card className="p-4 transition-colors hover:border-accent/40">
+            <span className="text-sm font-medium text-foreground">Cope content</span>
+            <p className="text-xs text-muted">ACT session schedule</p>
+          </Card>
+        </Link>
+        <Link href="/admin/belong">
+          <Card className="p-4 transition-colors hover:border-accent/40">
+            <span className="text-sm font-medium text-foreground">Belong content</span>
+            <p className="text-xs text-muted">Travel From Home events</p>
           </Card>
         </Link>
         <Card className="p-4 text-sm text-muted">Audit log — coming soon.</Card>
