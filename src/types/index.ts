@@ -93,3 +93,10 @@ export interface BelongEvent {
   photoUrl: string;
   status: "draft" | "published";
 }
+
+export interface CopeInstrumentLinks {
+  aaqUrl: string;
+  resilienceScaleUrl: string;
+  selfCompassionScaleUrl: string;
+  perceivedStressScaleUrl: string;
+}

@@ -1,9 +1,10 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { EyebrowLabel } from "@/components/ui/EyebrowLabel";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { Select } from "@/components/ui/Select";
 import {
   createResource,
   deleteResource,
@@ -12,6 +13,7 @@ import {
 } from "@/lib/firestore/resources";
 import { computeNextReviewDue } from "@/lib/firestore/matrix";
 import { useAuth } from "@/lib/auth-context";
+import { useSubmitState } from "@/lib/use-submit-state";
 import type { ContentStatus, ResourceCategory, ResourceEntry } from "@/types";
 
 const categories: ResourceCategory[] = [
@@ -37,11 +39,12 @@ const emptyForm = {
 };
 
 export default function AdminResourcesPage() {
-  const { profile } = useAuth();
+  const { profile, loading } = useAuth();
   const [items, setItems] = useState<ResourceEntry[]>([]);
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
+  const { submitting, error, success, run } = useSubmitState();
+  const formRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => subscribeToAllResources(setItems), []);
 
@@ -60,6 +63,7 @@ export default function AdminResourcesPage() {
       reviewerName: item.reviewerName,
       status: item.status,
     });
+    formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   function resetForm() {
@@ -70,8 +74,7 @@ export default function AdminResourcesPage() {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!profile) return;
-    setSubmitting(true);
-    try {
+    await run(async () => {
       const payload = {
         ...form,
         nextReviewDue: computeNextReviewDue(form.lastReviewedDate),
@@ -83,9 +86,16 @@ export default function AdminResourcesPage() {
         await createResource(payload);
       }
       resetForm();
-    } finally {
-      setSubmitting(false);
-    }
+    });
+  }
+
+  async function handleDelete(id: string) {
+    if (!confirm("Delete this resource? This cannot be undone.")) return;
+    await deleteResource(id);
+  }
+
+  if (loading) {
+    return null;
   }
 
   if (!canEdit) {
@@ -101,127 +111,134 @@ export default function AdminResourcesPage() {
       <EyebrowLabel>Admin</EyebrowLabel>
       <h1 className="mt-1 text-xl font-medium text-foreground">Resource directory content</h1>
 
-      <Card className="mt-6 p-4">
-        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-          <label className="text-sm text-muted">
-            Category
-            <select
-              value={form.category}
-              onChange={(e) => setForm({ ...form, category: e.target.value as ResourceCategory })}
-              className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-            >
-              {categories.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <div className="grid gap-3 sm:grid-cols-2">
+      <div ref={formRef}>
+        <Card className="mt-6 p-4">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-3">
             <label className="text-sm text-muted">
-              Name
+              Category
+              <div className="mt-1">
+                <Select className="w-full bg-background"
+                  value={form.category}
+                  onChange={(e) => setForm({ ...form, category: e.target.value as ResourceCategory })}
+                >
+                  {categories.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+            </label>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="text-sm text-muted">
+                Name
+                <input
+                  required
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
+                />
+              </label>
+              <label className="text-sm text-muted">
+                Role / office
+                <input
+                  required
+                  value={form.roleOrOffice}
+                  onChange={(e) => setForm({ ...form, roleOrOffice: e.target.value })}
+                  className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
+                />
+              </label>
+            </div>
+
+            <label className="text-sm text-muted">
+              Contact methods
               <input
                 required
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+                value={form.contactMethods}
+                onChange={(e) => setForm({ ...form, contactMethods: e.target.value })}
+                className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
               />
             </label>
+
             <label className="text-sm text-muted">
-              Role / office
-              <input
+              What they help with
+              <textarea
                 required
-                value={form.roleOrOffice}
-                onChange={(e) => setForm({ ...form, roleOrOffice: e.target.value })}
-                className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+                rows={2}
+                value={form.whatTheyHelpWith}
+                onChange={(e) => setForm({ ...form, whatTheyHelpWith: e.target.value })}
+                className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
               />
             </label>
-          </div>
 
-          <label className="text-sm text-muted">
-            Contact methods
-            <input
-              required
-              value={form.contactMethods}
-              onChange={(e) => setForm({ ...form, contactMethods: e.target.value })}
-              className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-            />
-          </label>
-
-          <label className="text-sm text-muted">
-            What they help with
-            <textarea
-              required
-              rows={2}
-              value={form.whatTheyHelpWith}
-              onChange={(e) => setForm({ ...form, whatTheyHelpWith: e.target.value })}
-              className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-            />
-          </label>
-
-          <label className="text-sm text-muted">
-            Hours (optional)
-            <input
-              value={form.hours}
-              onChange={(e) => setForm({ ...form, hours: e.target.value })}
-              className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-            />
-          </label>
-
-          <div className="grid gap-3 sm:grid-cols-3">
             <label className="text-sm text-muted">
-              Reviewer name
+              Hours (optional)
               <input
-                required
-                value={form.reviewerName}
-                onChange={(e) => setForm({ ...form, reviewerName: e.target.value })}
-                className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+                value={form.hours}
+                onChange={(e) => setForm({ ...form, hours: e.target.value })}
+                className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
               />
             </label>
-            <label className="text-sm text-muted">
-              Last reviewed date
-              <input
-                required
-                type="date"
-                value={form.lastReviewedDate}
-                onChange={(e) => setForm({ ...form, lastReviewedDate: e.target.value })}
-                className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-              />
-            </label>
-            <label className="text-sm text-muted">
-              Status
-              <select
-                value={form.status}
-                onChange={(e) => setForm({ ...form, status: e.target.value as ContentStatus })}
-                className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-              >
-                <option value="draft">Draft</option>
-                <option value="published">Published</option>
-              </select>
-            </label>
-          </div>
 
-          <div className="mt-2 flex gap-2">
-            <button
-              type="submit"
-              disabled={submitting}
-              className="rounded-lg bg-accent px-3 py-2 text-sm font-medium text-accent-foreground disabled:opacity-60"
-            >
-              {editingId ? "Save changes" : "Add resource"}
-            </button>
-            {editingId && (
+            <div className="grid gap-3 sm:grid-cols-3">
+              <label className="text-sm text-muted">
+                Reviewer name
+                <input
+                  required
+                  value={form.reviewerName}
+                  onChange={(e) => setForm({ ...form, reviewerName: e.target.value })}
+                  className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
+                />
+              </label>
+              <label className="text-sm text-muted">
+                Last reviewed date
+                <input
+                  required
+                  type="date"
+                  value={form.lastReviewedDate}
+                  onChange={(e) => setForm({ ...form, lastReviewedDate: e.target.value })}
+                  className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
+                />
+              </label>
+              <label className="text-sm text-muted">
+                Status
+                <div className="mt-1">
+                  <Select className="w-full bg-background"
+                    value={form.status}
+                    onChange={(e) => setForm({ ...form, status: e.target.value as ContentStatus })}
+                  >
+                    <option value="draft">Draft</option>
+                    <option value="published">Published</option>
+                  </Select>
+                </div>
+              </label>
+            </div>
+
+            {error && <p className="text-sm text-red-700">{error}</p>}
+
+            <div className="mt-2 flex items-center gap-3">
               <button
-                type="button"
-                onClick={resetForm}
-                className="rounded-lg border border-border px-3 py-2 text-sm text-muted"
+                type="submit"
+                disabled={submitting}
+                className="rounded-lg bg-accent px-3 py-2 text-sm font-medium text-accent-foreground disabled:opacity-60"
               >
-                Cancel
+                {submitting ? "Saving…" : editingId ? "Save changes" : "Add resource"}
               </button>
-            )}
-          </div>
-        </form>
-      </Card>
+              {editingId && (
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="rounded-lg border border-border px-3 py-2 text-sm text-muted"
+                >
+                  Cancel
+                </button>
+              )}
+              {success && <span className="text-sm text-accent">Saved</span>}
+            </div>
+          </form>
+        </Card>
+      </div>
 
       <div className="mt-8 flex flex-col gap-3">
         {items.map((item) => (
@@ -237,7 +254,7 @@ export default function AdminResourcesPage() {
               <button onClick={() => startEdit(item)} className="text-sm text-accent">
                 Edit
               </button>
-              <button onClick={() => deleteResource(item.id)} className="text-sm text-red-700">
+              <button onClick={() => handleDelete(item.id)} className="text-sm text-red-700">
                 Delete
               </button>
             </div>

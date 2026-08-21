@@ -1,9 +1,10 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { EyebrowLabel } from "@/components/ui/EyebrowLabel";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { Select } from "@/components/ui/Select";
 import {
   createNavigateItem,
   deleteNavigateItem,
@@ -12,6 +13,7 @@ import {
 } from "@/lib/firestore/navigate";
 import { computeNextReviewDue } from "@/lib/firestore/matrix";
 import { useAuth } from "@/lib/auth-context";
+import { useSubmitState } from "@/lib/use-submit-state";
 import type { ContentStatus, NavigateCategory, NavigateItem } from "@/types";
 
 const categories: NavigateCategory[] = ["Monthly resource", "Session material", "Bridge to Intake"];
@@ -27,11 +29,12 @@ const emptyForm = {
 };
 
 export default function AdminNavigatePage() {
-  const { profile } = useAuth();
+  const { profile, loading } = useAuth();
   const [items, setItems] = useState<NavigateItem[]>([]);
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
+  const { submitting, error, success, run } = useSubmitState();
+  const formRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => subscribeToAllNavigateItems(setItems), []);
 
@@ -48,6 +51,7 @@ export default function AdminNavigatePage() {
       reviewerName: item.reviewerName,
       status: item.status,
     });
+    formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   function resetForm() {
@@ -58,8 +62,7 @@ export default function AdminNavigatePage() {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!profile) return;
-    setSubmitting(true);
-    try {
+    await run(async () => {
       const payload = {
         ...form,
         nextReviewDue: computeNextReviewDue(form.lastReviewedDate),
@@ -71,9 +74,16 @@ export default function AdminNavigatePage() {
         await createNavigateItem(payload);
       }
       resetForm();
-    } finally {
-      setSubmitting(false);
-    }
+    });
+  }
+
+  async function handleDelete(id: string) {
+    if (!confirm("Delete this Navigate item? This cannot be undone.")) return;
+    await deleteNavigateItem(id);
+  }
+
+  if (loading) {
+    return null;
   }
 
   if (!canEdit) {
@@ -89,107 +99,114 @@ export default function AdminNavigatePage() {
       <EyebrowLabel>Admin</EyebrowLabel>
       <h1 className="mt-1 text-xl font-medium text-foreground">Navigate content</h1>
 
-      <Card className="mt-6 p-4">
-        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-          <label className="text-sm text-muted">
-            Category
-            <select
-              value={form.category}
-              onChange={(e) => setForm({ ...form, category: e.target.value as NavigateCategory })}
-              className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-            >
-              {categories.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="text-sm text-muted">
-            Title
-            <input
-              required
-              value={form.title}
-              onChange={(e) => setForm({ ...form, title: e.target.value })}
-              className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-            />
-          </label>
-
-          <label className="text-sm text-muted">
-            Description
-            <textarea
-              required
-              rows={3}
-              value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
-              className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-            />
-          </label>
-
-          <label className="text-sm text-muted">
-            Link (optional)
-            <input
-              type="url"
-              value={form.linkUrl}
-              onChange={(e) => setForm({ ...form, linkUrl: e.target.value })}
-              className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-            />
-          </label>
-
-          <div className="grid gap-3 sm:grid-cols-3">
+      <div ref={formRef}>
+        <Card className="mt-6 p-4">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-3">
             <label className="text-sm text-muted">
-              Reviewer name
+              Category
+              <div className="mt-1">
+                <Select className="w-full bg-background"
+                  value={form.category}
+                  onChange={(e) => setForm({ ...form, category: e.target.value as NavigateCategory })}
+                >
+                  {categories.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+            </label>
+
+            <label className="text-sm text-muted">
+              Title
               <input
                 required
-                value={form.reviewerName}
-                onChange={(e) => setForm({ ...form, reviewerName: e.target.value })}
-                className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+                value={form.title}
+                onChange={(e) => setForm({ ...form, title: e.target.value })}
+                className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
               />
             </label>
-            <label className="text-sm text-muted">
-              Last reviewed date
-              <input
-                required
-                type="date"
-                value={form.lastReviewedDate}
-                onChange={(e) => setForm({ ...form, lastReviewedDate: e.target.value })}
-                className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-              />
-            </label>
-            <label className="text-sm text-muted">
-              Status
-              <select
-                value={form.status}
-                onChange={(e) => setForm({ ...form, status: e.target.value as ContentStatus })}
-                className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-              >
-                <option value="draft">Draft</option>
-                <option value="published">Published</option>
-              </select>
-            </label>
-          </div>
 
-          <div className="mt-2 flex gap-2">
-            <button
-              type="submit"
-              disabled={submitting}
-              className="rounded-lg bg-accent px-3 py-2 text-sm font-medium text-accent-foreground disabled:opacity-60"
-            >
-              {editingId ? "Save changes" : "Add Navigate item"}
-            </button>
-            {editingId && (
+            <label className="text-sm text-muted">
+              Description
+              <textarea
+                required
+                rows={3}
+                value={form.description}
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
+                className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
+              />
+            </label>
+
+            <label className="text-sm text-muted">
+              Link (optional)
+              <input
+                type="url"
+                value={form.linkUrl}
+                onChange={(e) => setForm({ ...form, linkUrl: e.target.value })}
+                className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
+              />
+            </label>
+
+            <div className="grid gap-3 sm:grid-cols-3">
+              <label className="text-sm text-muted">
+                Reviewer name
+                <input
+                  required
+                  value={form.reviewerName}
+                  onChange={(e) => setForm({ ...form, reviewerName: e.target.value })}
+                  className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
+                />
+              </label>
+              <label className="text-sm text-muted">
+                Last reviewed date
+                <input
+                  required
+                  type="date"
+                  value={form.lastReviewedDate}
+                  onChange={(e) => setForm({ ...form, lastReviewedDate: e.target.value })}
+                  className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
+                />
+              </label>
+              <label className="text-sm text-muted">
+                Status
+                <div className="mt-1">
+                  <Select className="w-full bg-background"
+                    value={form.status}
+                    onChange={(e) => setForm({ ...form, status: e.target.value as ContentStatus })}
+                  >
+                    <option value="draft">Draft</option>
+                    <option value="published">Published</option>
+                  </Select>
+                </div>
+              </label>
+            </div>
+
+            {error && <p className="text-sm text-red-700">{error}</p>}
+
+            <div className="mt-2 flex items-center gap-3">
               <button
-                type="button"
-                onClick={resetForm}
-                className="rounded-lg border border-border px-3 py-2 text-sm text-muted"
+                type="submit"
+                disabled={submitting}
+                className="rounded-lg bg-accent px-3 py-2 text-sm font-medium text-accent-foreground disabled:opacity-60"
               >
-                Cancel
+                {submitting ? "Saving…" : editingId ? "Save changes" : "Add Navigate item"}
               </button>
-            )}
-          </div>
-        </form>
-      </Card>
+              {editingId && (
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="rounded-lg border border-border px-3 py-2 text-sm text-muted"
+                >
+                  Cancel
+                </button>
+              )}
+              {success && <span className="text-sm text-accent">Saved</span>}
+            </div>
+          </form>
+        </Card>
+      </div>
 
       <div className="mt-8 flex flex-col gap-3">
         {items.map((item) => (
@@ -205,7 +222,7 @@ export default function AdminNavigatePage() {
               <button onClick={() => startEdit(item)} className="text-sm text-accent">
                 Edit
               </button>
-              <button onClick={() => deleteNavigateItem(item.id)} className="text-sm text-red-700">
+              <button onClick={() => handleDelete(item.id)} className="text-sm text-red-700">
                 Delete
               </button>
             </div>

@@ -5,20 +5,23 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { EyebrowLabel } from "@/components/ui/EyebrowLabel";
 import { subscribeToPublishedCopeSessions } from "@/lib/firestore/cope";
+import { subscribeToInstrumentLinks } from "@/lib/firestore/copeInstruments";
 import { formatDate } from "@/lib/date";
-import type { CopeSession } from "@/types";
+import type { CopeInstrumentLinks, CopeSession } from "@/types";
 
-const instruments = [
-  "AAQ (Acceptance and Action Questionnaire)",
-  "Brief Resilience Scale",
-  "Self-Compassion Scale",
-  "Perceived Stress Scale",
+const instruments: Array<{ name: string; key: keyof CopeInstrumentLinks }> = [
+  { name: "AAQ (Acceptance and Action Questionnaire)", key: "aaqUrl" },
+  { name: "Brief Resilience Scale", key: "resilienceScaleUrl" },
+  { name: "Self-Compassion Scale", key: "selfCompassionScaleUrl" },
+  { name: "Perceived Stress Scale", key: "perceivedStressScaleUrl" },
 ];
 
 export default function CopePage() {
   const [sessions, setSessions] = useState<CopeSession[]>([]);
+  const [links, setLinks] = useState<CopeInstrumentLinks | null>(null);
 
   useEffect(() => subscribeToPublishedCopeSessions(setSessions), []);
+  useEffect(() => subscribeToInstrumentLinks(setLinks), []);
 
   const sorted = [...sessions].sort((a, b) => a.sessionNumber - b.sessionNumber);
 
@@ -56,11 +59,25 @@ export default function CopePage() {
       <section className="mt-8">
         <h2 className="text-sm font-medium text-foreground">Wellness self-check instruments</h2>
         <div className="mt-2 flex flex-col gap-2">
-          {instruments.map((name) => (
-            <Card key={name} className="p-4 text-sm text-muted">
-              {name} — link provided by program admin.
-            </Card>
-          ))}
+          {instruments.map(({ name, key }) => {
+            const url = links?.[key];
+            return (
+              <Card key={key} className="p-4 text-sm">
+                {url ? (
+                  <a
+                    href={url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-accent underline underline-offset-2"
+                  >
+                    {name}
+                  </a>
+                ) : (
+                  <span className="text-muted">{name} — link coming soon.</span>
+                )}
+              </Card>
+            );
+          })}
         </div>
       </section>
     </main>

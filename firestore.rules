@@ -65,6 +65,11 @@ service cloud.firestore {
       allow write: if isReviewerOrAdmin();
     }
 
+    match /settings/{id} {
+      allow read: if isSignedIn();
+      allow write: if isReviewerOrAdmin();
+    }
+
     // Not built yet — kept explicitly locked down so this collection can
     // never be left open by default once buddy group data is added.
     match /buddyGroups/{id} {

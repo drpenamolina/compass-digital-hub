@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { MatrixRowDetail } from "@/components/matrix/MatrixRowDetail";
+import { Select } from "@/components/ui/Select";
 import type { MatrixItem, TransitionType } from "@/types";
 
 const transitionTypes: TransitionType[] = [
@@ -28,20 +29,20 @@ export function MatrixTable({ items, uid }: { items: MatrixItem[]; uid: string |
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap gap-3">
-        <select
+        <Select
           value={pgyFilter}
           onChange={(e) => setPgyFilter(e.target.value as typeof pgyFilter)}
-          className="rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground"
+          className="bg-surface"
         >
           <option value="all">All PGY years</option>
           <option value="1">PGY-1</option>
           <option value="2">PGY-2</option>
           <option value="3">PGY-3</option>
-        </select>
-        <select
+        </Select>
+        <Select
           value={typeFilter}
           onChange={(e) => setTypeFilter(e.target.value as typeof typeFilter)}
-          className="rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground"
+          className="bg-surface"
         >
           <option value="all">All transition types</option>
           {transitionTypes.map((type) => (
@@ -49,7 +50,7 @@ export function MatrixTable({ items, uid }: { items: MatrixItem[]; uid: string |
               {type}
             </option>
           ))}
-        </select>
+        </Select>
       </div>
 
       {filtered.length === 0 ? (

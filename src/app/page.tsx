@@ -14,7 +14,7 @@ import { isExpired, subscribeToPublishedMatrixItems } from "@/lib/firestore/matr
 import type { MatrixItem } from "@/types";
 
 export default function Home() {
-  const { user, profile } = useAuth();
+  const { user, profile, loading } = useAuth();
   const [items, setItems] = useState<MatrixItem[]>([]);
 
   useEffect(() => subscribeToPublishedMatrixItems(setItems), []);
@@ -26,6 +26,22 @@ export default function Home() {
       .sort((a, b) => a.nextReviewDue.localeCompare(b.nextReviewDue))
       .slice(0, 2);
   }, [items, profile]);
+
+  if (loading) {
+    return (
+      <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
+        <div className="animate-pulse">
+          <div className="h-3 w-16 rounded bg-border" />
+          <div className="mt-2 h-6 w-48 rounded bg-border" />
+          <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="h-24 rounded-xl border border-border bg-surface" />
+            <div className="h-24 rounded-xl border border-border bg-surface" />
+            <div className="h-24 rounded-xl border border-border bg-surface" />
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6">

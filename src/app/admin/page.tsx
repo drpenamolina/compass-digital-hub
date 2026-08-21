@@ -26,7 +26,7 @@ function reviewCounts(dueDates: string[]) {
 }
 
 export default function AdminPage() {
-  const { profile } = useAuth();
+  const { profile, loading } = useAuth();
   const [matrixItems, setMatrixItems] = useState<MatrixItem[]>([]);
   const [resources, setResources] = useState<ResourceEntry[]>([]);
   const [navigateItems, setNavigateItems] = useState<NavigateItem[]>([]);
@@ -45,6 +45,10 @@ export default function AdminPage() {
     ];
     return reviewCounts(dueDates);
   }, [matrixItems, resources, navigateItems]);
+
+  if (loading) {
+    return null;
+  }
 
   if (!canEdit) {
     return (

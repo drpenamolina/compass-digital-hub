@@ -11,6 +11,7 @@ import { doc, getDoc, setDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { Card } from "@/components/ui/Card";
 import { EyebrowLabel } from "@/components/ui/EyebrowLabel";
+import { Select } from "@/components/ui/Select";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -81,6 +82,8 @@ export default function LoginPage() {
             <input
               type="email"
               required
+              autoComplete="email"
+              autoFocus
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
@@ -92,6 +95,7 @@ export default function LoginPage() {
               type="password"
               required
               minLength={8}
+              autoComplete={mode === "sign-in" ? "current-password" : "new-password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
@@ -101,15 +105,17 @@ export default function LoginPage() {
           {mode === "create-account" && (
             <label className="text-sm text-muted">
               PGY year
-              <select
-                value={pgyYear}
-                onChange={(e) => setPgyYear(e.target.value as "1" | "2" | "3")}
-                className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
-              >
-                <option value="1">PGY-1</option>
-                <option value="2">PGY-2</option>
-                <option value="3">PGY-3</option>
-              </select>
+              <div className="mt-1">
+                <Select
+                  value={pgyYear}
+                  onChange={(e) => setPgyYear(e.target.value as "1" | "2" | "3")}
+                  className="w-full bg-background"
+                >
+                  <option value="1">PGY-1</option>
+                  <option value="2">PGY-2</option>
+                  <option value="3">PGY-3</option>
+                </Select>
+              </div>
             </label>
           )}
 

@@ -1,9 +1,10 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { EyebrowLabel } from "@/components/ui/EyebrowLabel";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { Select } from "@/components/ui/Select";
 import {
   createBelongEvent,
   deleteBelongEvent,
@@ -11,6 +12,7 @@ import {
   updateBelongEvent,
 } from "@/lib/firestore/belong";
 import { useAuth } from "@/lib/auth-context";
+import { useSubmitState } from "@/lib/use-submit-state";
 import type { BelongEvent } from "@/types";
 
 const emptyForm = {
@@ -23,11 +25,12 @@ const emptyForm = {
 };
 
 export default function AdminBelongPage() {
-  const { profile } = useAuth();
+  const { profile, loading } = useAuth();
   const [events, setEvents] = useState<BelongEvent[]>([]);
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
+  const { submitting, error, success, run } = useSubmitState();
+  const formRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => subscribeToAllBelongEvents(setEvents), []);
 
@@ -43,6 +46,7 @@ export default function AdminBelongPage() {
       photoUrl: event.photoUrl,
       status: event.status,
     });
+    formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   function resetForm() {
@@ -52,17 +56,23 @@ export default function AdminBelongPage() {
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    setSubmitting(true);
-    try {
+    await run(async () => {
       if (editingId) {
         await updateBelongEvent(editingId, form);
       } else {
         await createBelongEvent(form);
       }
       resetForm();
-    } finally {
-      setSubmitting(false);
-    }
+    });
+  }
+
+  async function handleDelete(id: string) {
+    if (!confirm("Delete this event? This cannot be undone.")) return;
+    await deleteBelongEvent(id);
+  }
+
+  if (loading) {
+    return null;
   }
 
   if (!canEdit) {
@@ -78,93 +88,99 @@ export default function AdminBelongPage() {
       <EyebrowLabel>Admin</EyebrowLabel>
       <h1 className="mt-1 text-xl font-medium text-foreground">Belong content</h1>
 
-      <Card className="mt-6 p-4">
-        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-          <div className="grid gap-3 sm:grid-cols-2">
+      <div ref={formRef}>
+        <Card className="mt-6 p-4">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="text-sm text-muted">
+                Title
+                <input
+                  required
+                  value={form.title}
+                  onChange={(e) => setForm({ ...form, title: e.target.value })}
+                  className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
+                />
+              </label>
+              <label className="text-sm text-muted">
+                Country / culture
+                <input
+                  required
+                  value={form.country}
+                  onChange={(e) => setForm({ ...form, country: e.target.value })}
+                  className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
+                />
+              </label>
+            </div>
+
             <label className="text-sm text-muted">
-              Title
+              Event date
               <input
                 required
-                value={form.title}
-                onChange={(e) => setForm({ ...form, title: e.target.value })}
-                className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+                type="date"
+                value={form.eventDate}
+                onChange={(e) => setForm({ ...form, eventDate: e.target.value })}
+                className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
               />
             </label>
+
             <label className="text-sm text-muted">
-              Country / culture
-              <input
+              Description
+              <textarea
                 required
-                value={form.country}
-                onChange={(e) => setForm({ ...form, country: e.target.value })}
-                className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+                rows={3}
+                value={form.description}
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
+                className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
               />
             </label>
-          </div>
 
-          <label className="text-sm text-muted">
-            Event date
-            <input
-              required
-              type="date"
-              value={form.eventDate}
-              onChange={(e) => setForm({ ...form, eventDate: e.target.value })}
-              className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-            />
-          </label>
+            <label className="text-sm text-muted">
+              Photo URL (optional)
+              <input
+                type="url"
+                value={form.photoUrl}
+                onChange={(e) => setForm({ ...form, photoUrl: e.target.value })}
+                className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
+              />
+            </label>
 
-          <label className="text-sm text-muted">
-            Description
-            <textarea
-              required
-              rows={3}
-              value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
-              className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-            />
-          </label>
+            <label className="text-sm text-muted">
+              Status
+              <div className="mt-1">
+                <Select className="w-full bg-background"
+                  value={form.status}
+                  onChange={(e) => setForm({ ...form, status: e.target.value as "draft" | "published" })}
+                >
+                  <option value="draft">Draft</option>
+                  <option value="published">Published</option>
+                </Select>
+              </div>
+            </label>
 
-          <label className="text-sm text-muted">
-            Photo URL (optional)
-            <input
-              type="url"
-              value={form.photoUrl}
-              onChange={(e) => setForm({ ...form, photoUrl: e.target.value })}
-              className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-            />
-          </label>
+            {error && <p className="text-sm text-red-700">{error}</p>}
 
-          <label className="text-sm text-muted">
-            Status
-            <select
-              value={form.status}
-              onChange={(e) => setForm({ ...form, status: e.target.value as "draft" | "published" })}
-              className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-            >
-              <option value="draft">Draft</option>
-              <option value="published">Published</option>
-            </select>
-          </label>
-
-          <div className="mt-2 flex gap-2">
-            <button
-              type="submit"
-              disabled={submitting}
-              className="rounded-lg bg-accent px-3 py-2 text-sm font-medium text-accent-foreground disabled:opacity-60"
-            >
-              {editingId ? "Save changes" : "Add event"}
-            </button>
-            {editingId && (
+            <div className="mt-2 flex items-center gap-3">
               <button
-                type="button"
-                onClick={resetForm}
-                className="rounded-lg border border-border px-3 py-2 text-sm text-muted"
+                type="submit"
+                disabled={submitting}
+                className="rounded-lg bg-accent px-3 py-2 text-sm font-medium text-accent-foreground disabled:opacity-60"
               >
-                Cancel
+                {submitting ? "Saving…" : editingId ? "Save changes" : "Add event"}
               </button>
-            )}
-          </div>
-        </form>
-      </Card>
+              {editingId && (
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="rounded-lg border border-border px-3 py-2 text-sm text-muted"
+                >
+                  Cancel
+                </button>
+              )}
+              {success && <span className="text-sm text-accent">Saved</span>}
+            </div>
+          </form>
+        </Card>
+      </div>
 
       <div className="mt-8 flex flex-col gap-3">
         {[...events]
@@ -186,7 +202,7 @@ export default function AdminBelongPage() {
                 <button onClick={() => startEdit(event)} className="text-sm text-accent">
                   Edit
                 </button>
-                <button onClick={() => deleteBelongEvent(event.id)} className="text-sm text-red-700">
+                <button onClick={() => handleDelete(event.id)} className="text-sm text-red-700">
                   Delete
                 </button>
               </div>
