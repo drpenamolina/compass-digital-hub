@@ -1,69 +1,114 @@
-import Image from "next/image";
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { IconChecklist, IconAddressBook, IconShieldCheck } from "@tabler/icons-react";
+import { Card } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
+import { EyebrowLabel } from "@/components/ui/EyebrowLabel";
+import { ReviewedStamp } from "@/components/ui/ReviewedStamp";
+import { DisclaimerBanner } from "@/components/ui/DisclaimerBanner";
+import { PillarTiles } from "@/components/layout/PillarTiles";
+import { useAuth } from "@/lib/auth-context";
+import { isExpired, subscribeToPublishedMatrixItems } from "@/lib/firestore/matrix";
+import type { MatrixItem } from "@/types";
 
 export default function Home() {
+  const { user, profile } = useAuth();
+  const [items, setItems] = useState<MatrixItem[]>([]);
+
+  useEffect(() => subscribeToPublishedMatrixItems(setItems), []);
+
+  const upcoming = useMemo(() => {
+    return items
+      .filter((item) => !isExpired(item.nextReviewDue))
+      .filter((item) => !profile || item.pgyYears.includes(profile.pgyYear))
+      .sort((a, b) => a.nextReviewDue.localeCompare(b.nextReviewDue))
+      .slice(0, 2);
+  }, [items, profile]);
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
+      <EyebrowLabel>{profile ? `PGY-${profile.pgyYear}` : "Welcome"}</EyebrowLabel>
+      <h1 className="mt-1 text-xl font-medium text-foreground">
+        {profile ? `Hi, ${profile.displayName}` : "COMPASS resident hub"}
+      </h1>
+
+      {!user && (
+        <p className="mt-2 text-sm text-muted">
+          <Link href="/login" className="text-accent underline underline-offset-2">
+            Sign in
+          </Link>{" "}
+          to see your timeline and track your progress.
+        </p>
+      )}
+
+      <div className="mt-4">
+        <DisclaimerBanner>
+          This hub provides general awareness, not individualized legal or immigration advice.
+          Confirm specific questions with the responsible office listed on each item.
+        </DisclaimerBanner>
+      </div>
+
+      <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <Link href="/matrix">
+          <Card className="flex h-full flex-col gap-2 p-4 transition-colors hover:border-accent/40">
+            <IconChecklist size={20} className="text-muted" stroke={1.5} />
+            <span className="text-sm font-medium text-foreground">Action Matrix</span>
+            <span className="text-xs text-muted">Deadlines and required actions</span>
+          </Card>
+        </Link>
+        <Link href="/resources">
+          <Card className="flex h-full flex-col gap-2 p-4 transition-colors hover:border-accent/40">
+            <IconAddressBook size={20} className="text-muted" stroke={1.5} />
+            <span className="text-sm font-medium text-foreground">Resource directory</span>
+            <span className="text-xs text-muted">Offices and contacts by category</span>
+          </Card>
+        </Link>
+        {profile?.role === "reviewer" || profile?.role === "admin" ? (
+          <Link href="/admin">
+            <Card className="flex h-full flex-col gap-2 p-4 transition-colors hover:border-accent/40">
+              <IconShieldCheck size={20} className="text-muted" stroke={1.5} />
+              <span className="text-sm font-medium text-foreground">Admin</span>
+              <span className="text-xs text-muted">Review queue and content</span>
+            </Card>
+          </Link>
+        ) : (
+          <Link href="/restore">
+            <Card className="flex h-full flex-col gap-2 p-4 transition-colors hover:border-accent/40">
+              <IconShieldCheck size={20} className="text-muted" stroke={1.5} />
+              <span className="text-sm font-medium text-foreground">Rapid response</span>
+              <span className="text-xs text-muted">Who to contact, in what order</span>
+            </Card>
+          </Link>
+        )}
+      </div>
+
+      <section className="mt-8">
+        <EyebrowLabel>Your timeline</EyebrowLabel>
+        <div className="mt-2 flex flex-col gap-3">
+          {upcoming.length === 0 ? (
+            <p className="text-sm text-muted">No upcoming matrix items yet.</p>
+          ) : (
+            upcoming.map((item) => (
+              <Card key={item.id} className="flex items-center justify-between gap-3 p-4">
+                <div>
+                  <Badge tone="neutral">{item.transitionType}</Badge>
+                  <p className="mt-1.5 text-sm font-medium text-foreground">{item.title}</p>
+                </div>
+                <ReviewedStamp date={item.lastReviewedDate} />
+              </Card>
+            ))
+          )}
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+      </section>
+
+      <section className="mt-8">
+        <EyebrowLabel>Program pillars</EyebrowLabel>
+        <div className="mt-2">
+          <PillarTiles />
         </div>
-      </main>
-    </div>
+      </section>
+    </main>
   );
 }

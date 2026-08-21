@@ -1,0 +1,17 @@
+{
+  "name": "COMPASS Resident Digital Hub",
+  "short_name": "COMPASS",
+  "description": "Reference hub for J-1 IMG residents: deadlines, resources, and support.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f7f7f8",
+  "theme_color": "#123a5e",
+  "icons": [
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,0 +1,63 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function role() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isReviewerOrAdmin() {
+      return isSignedIn() && role() in ['reviewer', 'admin'];
+    }
+
+    // Allowlist gate checked by the client before account creation.
+    // Individual documents can be looked up by exact email, but the
+    // collection can never be listed/enumerated.
+    match /allowedEmails/{email} {
+      allow get: if true;
+      allow list: if false;
+      allow write: if isReviewerOrAdmin();
+    }
+
+    match /users/{uid} {
+      allow read: if isSignedIn() && (request.auth.uid == uid || isReviewerOrAdmin());
+      allow create: if isSignedIn() && request.auth.uid == uid
+                    && request.resource.data.role == 'resident';
+      allow update: if isReviewerOrAdmin()
+                    || (isSignedIn() && request.auth.uid == uid
+                        && request.resource.data.role == resource.data.role);
+      allow delete: if isReviewerOrAdmin();
+    }
+
+    match /matrixItems/{id} {
+      allow read: if isSignedIn();
+      allow create, delete: if isReviewerOrAdmin();
+      allow update: if isReviewerOrAdmin() || (
+        isSignedIn() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['residentSelfTrack']) &&
+        request.resource.data.residentSelfTrack.diff(resource.data.residentSelfTrack)
+          .affectedKeys().hasOnly([request.auth.uid])
+      );
+    }
+
+    match /resources/{id} {
+      allow read: if isSignedIn();
+      allow write: if isReviewerOrAdmin();
+    }
+
+    // Not built yet — kept explicitly locked down so this collection can
+    // never be left open by default once buddy group data is added.
+    match /buddyGroups/{id} {
+      allow read, write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,0 +1,9 @@
+<svg viewBox="0 0 620 210" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="100" cy="100" r="68" fill="none" stroke="#FFFFFF" stroke-width="2"/>
+  <polygon points="100,36 87,94 113,94" fill="#FFFFFF"/>
+  <polygon points="100,164 87,106 113,106" fill="none" stroke="#FFFFFF" stroke-width="2"/>
+  <rect x="89" y="97" width="22" height="6" fill="#FFFFFF"/>
+  <rect x="97" y="89" width="6" height="22" fill="#FFFFFF"/>
+  <text x="255" y="106" font-family="system-ui, -apple-system, sans-serif" font-weight="500" font-size="46" letter-spacing="2" fill="#FFFFFF">COMPASS</text>
+  <text x="256" y="134" font-family="system-ui, -apple-system, sans-serif" font-weight="400" font-size="15" letter-spacing="1.5" fill="#D7DEE5">RESIDENT DIGITAL HUB</text>
+</svg>
